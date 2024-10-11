@@ -4,10 +4,11 @@ provider "aws" {
 
 
 
-resource "aws_instance" "web" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+resource "aws_instance" "sonarquep" {
+  ami           = "ami-0866a3c8686eaeeba"
+  instance_type = "t3.small"
 
   tags = {
-    Name = "HelloWorld"
+    Name = "sonarquep-instance"
   }
+}
