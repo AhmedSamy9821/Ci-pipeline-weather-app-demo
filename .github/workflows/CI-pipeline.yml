@@ -1,0 +1,30 @@
+---
+name: weather_app_pipeline
+on: 
+    push: 
+        branches: [ "main" ]
+jobs:
+    CI_pipeline:
+      runs-on: ubuntu-latest
+
+      steps:
+
+      - name: checkout the repo
+        uses: actions/checkout@v4
+    
+      - name: install terraform 
+        uses: hashicorp/setup-terraform@v3
+
+      - name: run ec2 instance to install sonarquep on it
+        run: |
+          terraform init 
+          terraform apply --auto-approve
+        env:
+            AWS_ACCESS_KEY_ID: ${{TERRAFORM_AWS_ACCESS_KEY_ID}}
+            AWS_SECRET_ACCESS_KEY: ${{TERRAFORM_AWS_SECRET_ACCESS_KEY}}
+
+      - name: destroy sonar quep instance
+        run: terrafrom destroy
+        env:
+            AWS_ACCESS_KEY_ID: ${{TERRAFORM_AWS_ACCESS_KEY_ID}}
+            AWS_SECRET_ACCESS_KEY: ${{TERRAFORM_AWS_SECRET_ACCESS_KEY}}
