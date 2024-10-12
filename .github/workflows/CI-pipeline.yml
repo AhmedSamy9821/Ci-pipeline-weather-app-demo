@@ -23,6 +23,11 @@ jobs:
             AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
             AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
 
+      #- name: install sonarquebe by ansibl
+
+        #env:
+         # POSTGRES_PASSWORD: ANSIBLE_SONARQUEPUSER_POSTGRES_PASSWORD
+
       - name: destroy sonar quep instance
         run: terraform destroy --auto-approve
         env:
