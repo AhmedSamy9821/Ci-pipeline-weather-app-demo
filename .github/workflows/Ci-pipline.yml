@@ -18,7 +18,7 @@ jobs:
       - name: run ec2 instance to install sonarquep on it
         run: |
           terraform init 
-          terraform apply --auto-approve
+          terraform apply --auto-approve #want to output inventory file with ip and global variable that has the ip
         env:
             AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
             AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
@@ -27,6 +27,25 @@ jobs:
 
         #env:
          # POSTGRES_PASSWORD: ${{ANSIBLE_SONARQUEPUSER_POSTGRES_PASSWORD}}
+
+      #create project and token and store it on global variable
+
+      #run unit tests
+
+      # - uses: actions/checkout@v2
+      #   with:
+      #     fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      # - uses: sonarsource/sonarqube-scan-action@master
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # If you wish to fail your job when the Quality Gate is red, uncomment the
+      # following lines. This would typically be used to fail a deployment.
+      # - uses: sonarsource/sonarqube-quality-gate-action@master
+      #   timeout-minutes: 5
+      #   env:
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: destroy sonar quep instance
         run: terraform destroy --auto-approve
