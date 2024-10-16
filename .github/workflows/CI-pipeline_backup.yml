@@ -1,8 +1,11 @@
 ---
 name: weather_app_pipeline
 on: 
-    push: 
-        branches: [ "main" ]
+    workflow_dispatch:
+        inputs:
+          environment:
+            description: 'Environment to deploy to'
+            required: false
 jobs:
     CI_pipeline:
       runs-on: ubuntu-latest
