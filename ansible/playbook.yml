@@ -5,23 +5,16 @@
    POSTGRES_PASSWORD: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
   
   tasks:
-  - name: install wget, openjdk-17-jdk and unzip
-    become: true
-    apt:
-      update_cache: true
-      name: [wget,openjdk-17-jdk,unzip]
-
 
 #install and configure PostgreSQL database
   - name: Import the PostgreSQL repository key and Add the PostgreSQL repository
     ansible.builtin.shell:
-      chdir: /app
       cmd: '{{item}}'
     loop:
-    - curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor | tee /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg >/dev/null
-    - sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    - sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    - wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/pgdg.asc &>/dev/null
 
-  - name: Install PostgreSQL 
+    - name: Install PostgreSQL 
     apt:
       update_cache: true
       name: [postgresql , postgresql-contrib]
@@ -30,6 +23,7 @@
     ansible.builtin.shell:
       cmd: '{{item}}'
     loop: 
+    - systemctl enable postgresql
     - sudo -u postgres psql
     - CREATE ROLE sonaruser WITH LOGIN ENCRYPTED PASSWORD '{{POSTGRES_PASSWORD}}';
     - CREATE DATABASE sonarqube;
@@ -37,31 +31,43 @@
     - \q
 
 
+  - name: install Install Java 17
+    become: true
+    apt:
+      update_cache: true
+      name: [wget, apt-transport-https, unzip , temurin-17-jdk]
+       
+  - name: Increase the virtual memory on the system for Elasticsearch to function
+    ansible.builtin.lineinfile:
+        path: /etc/sysctl.conf
+        line: vm.max_map_count=262144
+  
+  - name: increase the file descriptors and threads that the sonarqube user can open
+    ansible.builtin.lineinfile:
+      path: /etc/security/limits.conf
+      line: "{{item}}"
+      state: present
+      create: true
+    loop:
+        - sonarqube   -   nofile   65536
+        - sonarqube   -   nproc    4096
+
+        
+  - name: Reboot the system to apply the changes.
+    ansible.builtin.reboot:
+     msg: "Rebooting machine in 5 seconds to apply the changes"
+
 #install and configure sonarquebe
   - name: Install Sonarqube
     ansible.builtin.shell:
       cmd: '{{item}}'
     loop: 
-    - wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.6.1.59531.zip
-    - unzip -q sonarqube-9.6.1.59531.zip
-    - mv sonarqube-9.6.1.59531 /opt/sonarqube
-    - rm sonarqube-9.6.1.59531.zip
-
-  - name: Create SonarQube User
-    ansible.builtin.user:
-      name: sonarqube
-      system: yes              
-      create_home: no          
-      group: yes              
-      shell: /usr/sbin/nologin
-
-  - name: Give Sonar user permissions to the /opt/sonarqube directory
-    ansible.builtin.file:
-        path: /opt/sonarqube
-        owner: sonarqube
-        group: sonarqube
-        state: directory
-        recurse: yes
+    - wget https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.9.0.65466.zip
+    - unzip sonarqube-9.9.0.65466.zip -d /opt
+    - mv /opt/sonarqube-9.9.0.65466 /opt/sonarqube
+    - groupadd sonar
+    - useradd -c "user to run SonarQube" -d /opt/sonarqube -g sonar sonar
+    - chown sonar:sonar /opt/sonarqube -R
 
   - name: configure sonarqube server
     ansible.builtin.lineinfile:
@@ -73,35 +79,37 @@
         - { search: '#sonar.jdbc.username=', line: 'sonar.jdbc.username=sonaruser' }
         - { search: '#sonar.jdbc.password=', line: 'sonar.jdbc.password={{POSTGRES_PASSWORD}}' }
         - { search: '#sonar.jdbc.url=jdbc:postgresql://localhost/sonarqube?currentSchema=my_schema', line: 'sonar.jdbc.url=jdbc:postgresql://localhost:5432/sonarqube' }
-        - { search: '#sonar.web.javaAdditionalOpts=-server', line: 'sonar.web.javaAdditionalOpts=-server' }
-        - { search: '#sonar.web.host=0.0.0.0', line: 'sonar.web.host=127.0.0.1' }
-        - { search: '#sonar.web.port=9000', line: 'sonar.web.port=9000' }
-        - { search: '#sonar.search.javaOpts=-Xmx512m -Xms512m -XX:MaxDirectMemorySize=256m -XX:+HeapDumpOnOutOfMemoryError', line: 'sonar.search.javaOpts=-Xmx512m -Xms512m -XX:MaxDirectMemorySize=256m -XX:+HeapDumpOnOutOfMemoryError' }
-        
-        
-  - name: Increase the virtual memory on the system for Elasticsearch to function
-    ansible.builtin.lineinfile:
-      path: /etc/sysctl.conf
-      line: "{{item}}"
-    loop:
-      - vm.max_map_count=524288
-      - fs.file-max=131072
 
-  - name: increase the file descriptors and threads that the sonarqube user can open
-    ansible.builtin.lineinfile:
-      path: /etc/security/limits.d/99-sonarqube.conf
-      line: "{{item}}"
-      state: present
+  - name: Create service for Sonarqube
+    ansible.builtin.blockinfile:
+      path: /etc/systemd/system/sonar.service
       create: true
-    loop:
-      - sonarqube   -   nofile   131072
-      - sonarqube   -   nproc    8192
+      block: |
+        [Unit]
+        Description=SonarQube service
+        After=syslog.target network.target
 
-  - name: Reboot the system to apply the changes.
-    ansible.builtin.reboot:
-      msg: "Rebooting machine in 5 seconds to apply the changes"
+        [Service]
+        Type=forking
 
-  - name: copy the systemd service file for Sonar
-    ansible.builtin.copy:
-      src: ./sonarqube.service
-      dest: /etc/systemd/system/sonarqube.service
+        ExecStart=/opt/sonarqube/bin/linux-x86-64/sonar.sh start
+        ExecStop=/opt/sonarqube/bin/linux-x86-64/sonar.sh stop
+
+        User=sonar
+        Group=sonar
+        Restart=always
+
+        LimitNOFILE=65536
+        LimitNPROC=4096
+
+        [Install]
+        WantedBy=multi-user.target
+  
+  - name: Start Sonarqube and Enable service
+    ansible.builtin.shell:
+      cmd: '{{item}}'
+    loop: 
+    -  systemctl start sonar
+    - systemctl enable sonar
+    - systemctl status sonar
+    - tail -n 100 /opt/sonarqube/logs/sonar.log
