@@ -26,7 +26,7 @@ jobs:
       #- name: install sonarquebe by ansibl
 
         #env:
-         # POSTGRES_PASSWORD: ${{ANSIBLE_SONARQUEPUSER_POSTGRES_PASSWORD}}
+         # POSTGRES_PASSWORD: ${{secrets.ANSIBLE_SONARQUEPUSER_POSTGRES_PASSWORD}}
 
       #create project and token and store it on global variable
 
