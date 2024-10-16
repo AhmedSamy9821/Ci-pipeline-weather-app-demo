@@ -9,6 +9,6 @@ resource "aws_instance" "sonarquep" {
   instance_type = "t3.small"
 
   tags = {
-    Name = "sonarquep-instance"
+    Name = "sonarquep-instance1"
   }
 }
