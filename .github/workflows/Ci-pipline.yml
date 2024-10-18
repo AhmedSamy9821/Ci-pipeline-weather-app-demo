@@ -6,22 +6,37 @@ on:
 jobs:
     CI_pipeline:
       runs-on: ubuntu-latest
+      container:
+        image: sonarqube
+        ports:
+          - 9000
+        volumes:
+          - sonarqube_volume:/sonarqube_volume
 
       steps:
 
       - name: checkout the repo
+        run: cd /sonarqube_volume
         uses: actions/checkout@v4
-    
-      - name: install terraform 
-        uses: hashicorp/setup-terraform@v3
-
-      - name: run ec2 instance to install sonarquep on it
+        with:
+           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      
+      - name: create project and token on sonarquebe
         run: |
-          terraform init 
-          terraform apply --auto-approve #want to output inventory file with ip and global variable that has the ip
-        env:
-            AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
-            AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
+          token=$(curl -u admin:admin -X POST "http://localhost:9000/api/user_tokens/generate?name=weather_token") #create token
+          curl -u YOUR_TOKEN: -X POST "http://localhost:9000/api/projects/create?name=weather_project&project=weather_project" #create project
+          echo " token: ${token} & project url: http://localhost:9000/dashboard?id=weather_project"
+    
+      # - name: install terraform 
+      #   uses: hashicorp/setup-terraform@v3
+
+      # - name: run ec2 instance to install sonarquep on it
+      #   run: |
+      #     terraform init 
+      #     terraform apply --auto-approve #want to output inventory file with ip and global variable that has the ip
+      #   env:
+      #       AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
+      #       AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
 
       #- name: install sonarquebe by ansibl
 
@@ -32,9 +47,6 @@ jobs:
 
       #run unit tests
 
-      # - uses: actions/checkout@v2
-      #   with:
-      #     fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       # - uses: sonarsource/sonarqube-scan-action@master
       #   env:
       #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -47,8 +59,8 @@ jobs:
       #   env:
       #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: destroy sonar quep instance
-        run: terraform destroy --auto-approve
-        env:
-            AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
-            AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
+      # - name: destroy sonar quep instance
+      #   run: terraform destroy --auto-approve
+      #   env:
+      #       AWS_ACCESS_KEY_ID: ${{secrets.TERRAFORM_AWS_ACCESS_KEY_ID}}
+      #       AWS_SECRET_ACCESS_KEY: ${{secrets.TERRAFORM_AWS_SECRET_ACCESS_KEY}}
